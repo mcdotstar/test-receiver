@@ -42,7 +42,8 @@ jobs:
       - name: Extract payload information
         shell: bash
         run: |
-          echo "REMOVE=${${{ github.event.client_payload.remove }}:-0}" >> "${GITHUB_ENV}"
+          export REMOVE=${{ github.event.client_payload.remove }}
+          echo "REMOVE=${REMOVE:-0}" >> "${GITHUB_ENV}"
           echo "TAG=${{ github.event.client_payload.tag }}" >> "${GITHUB_ENV}"
 
       - name: (Re)generate registry files
