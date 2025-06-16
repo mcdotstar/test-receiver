@@ -24,59 +24,47 @@ def make_registries(repo, base, message):
     repo.index.commit(message)
 
 
-def one_tag(repo, base, mccode, tag):
-    mccode_current = mccode.active_branch
+def one_tag(repo, base, source, tag):
+    source_current = source.active_branch
     repo_current = repo.active_branch
 
-    mccode.git.checkout(tag)
+    source.git.checkout(tag)
     message = f'Add {tag} registries'
     make_registries(repo, base, message)
     repo.create_tag(tag, message=message)
 
-    mccode.git.checkout(mccode_current.name)
+    source.git.checkout(source_current.name)
     repo.git.checkout(repo_current.name)
 
 
-def one_branch(repo, base, mccode, name, push: bool):
-    if name not in mccode.branches:
-        return
-    mccode_current = mccode.active_branch
-    mccode.git.checkout(name)
-
-    repo_current = repo.active_branch
-    if name in repo.branches:
-        repo.git.checkout(name)
-    else:
-        repo.git.checkout('-b', name)
-        repo.git.branch('-u', 'origin', name)
-
-    make_registries(repo, base, f'Add {name} branch registries')
-
-    if push:
-        repo.remote('origin').push()
-
-    mccode.git.checkout(mccode_current.name)
-    repo.git.checkout(repo_current.name)
+def v_tags(repo):
+    return [tag for tag in repo.tags if str(tag).startswith('v')]
 
 
-def do_everything(parent: Path, push: bool):
+def do_everything(repo, parent, source, tag: str):
+    source_tags = [tag] if tag else v_tags(source)
+    repo_rags =  v_tags(repo)
+    missing = [t for t in source_tags if t not in repo_tags]
+    # missing holds source-defined tag(s) that this repo does not have
+    for tag in missing:
+        one_tag(repo, parent, source, tag)
+    return len(missing) > 0
+
+
+def main(parent: Path, push: bool, remove: bool, tag: str):
     import git
     repo = git.Repo(Path(__file__).parent, search_parent_directories=False)
-    mccode = git.Repo(parent, search_parent_directories=False)
-
-    tags = [tag for tag in repo.tags if str(tag).startswith('v')]
-    missing = [tag for tag in mccode.tags if str(tag).startswith('v') and tag not in tags]
-    for tag in missing:
-        print(f'handle missing tag {tag}')
-        one_tag(repo, parent, mccode, tag)
-
-    # Also track special branches:
-    for branch in ("main",):
-        one_branch(repo, parent, mccode, branch, push=push)
-
-    if push:
+    changed = False
+    if remove and tag in repo.refs:
+        repo.delete_tag(tag)
+        changed = True
+    elif not remove:
+	source = git.Repo(parent, search_parent_directories=False)
+        change = do_everything(repo, parent, source, push, tag)
+     
+    if push and changed:
         repo.remote('origin').push(tags=True)
-
+        
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -98,9 +86,5 @@ if __name__ == '__main__':
     if args.tag is None and remove != 0:
         raise ValueError(f'Non-zero {remove=} without a specified tag is not allowed')
 
-    tag = args.tag or ''
-    print(f'{remove=} {tag=} {tag if tag else "blah"=}')
-    exit(0)
-
-
-    do_everything(parent=parent, push=not args.no_push)
+    main(parent=parent, push=not args.no_push, remove=remove, tag=args.tag or '')
+    
