@@ -1,0 +1,51 @@
+name: 'Register files'
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [update_tag]
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  register-files:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Clone mcdotstar/test-pusher
+        uses: actions/checkout@v4
+        with:
+          repository: mcdotstar/test-pusher
+          path: pusher
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure git for possible tag authoring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Extract payload information
+        shell: bash
+        run: |
+          export REMOVE="${{ github.event.client_payload.remove }}"
+          export TAG="${{ github.event.client_payload.tag }}"
+          echo "REMOVE=${REMOVE:-0}" >> "${GITHUB_ENV}"
+          echo "TAG=${TAG}" >> "${GITHUB_ENV}"
+
+      - name: (Re)generate registry files
+        run: python register.py --parent pusher --remove ${{ env.REMOVE }} ${{ env.TAG }}
