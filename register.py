@@ -43,7 +43,7 @@ def v_tags(repo):
 
 def do_everything(repo, parent, source, tag: str):
     source_tags = [tag] if tag else v_tags(source)
-    repo_rags =  v_tags(repo)
+    repo_tags =  v_tags(repo)
     missing = [t for t in source_tags if t not in repo_tags]
     # missing holds source-defined tag(s) that this repo does not have
     for tag in missing:
@@ -59,8 +59,8 @@ def main(parent: Path, push: bool, remove: bool, tag: str):
         repo.delete_tag(tag)
         changed = True
     elif not remove:
-	source = git.Repo(parent, search_parent_directories=False)
-        change = do_everything(repo, parent, source, push, tag)
+        source = git.Repo(parent, search_parent_directories=False)
+        change = do_everything(repo, parent, source, tag)
      
     if push and changed:
         repo.remote('origin').push(tags=True)
