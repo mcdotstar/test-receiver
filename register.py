@@ -58,14 +58,14 @@ def main(parent: Path, push: bool, remove: bool, tag: str):
     changed = False
     if remove and tag in repo.refs:
         repo.delete_tag(tag)
-        changed = True
+        if push:
+            print(f'Push removed tag {tag} to origin')
+            repo.remote('origin').push(refspec=f':{tag}')
     elif not remove:
         source = git.Repo(parent, search_parent_directories=False)
-        changed = do_everything(repo, parent, source, tag)
-     
-    if push and changed:
-        print(f'Push tags to origin')
-        repo.remote('origin').push(tags=True)
+        if do_everything(repo, parent, source, tag) and push:
+            print(f'Push tags to origin')
+            repo.remote('origin').push(tags=True)
         
 
 if __name__ == '__main__':
